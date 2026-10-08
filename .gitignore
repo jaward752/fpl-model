@@ -1,0 +1,23 @@
+# Generated — rebuild with `python ingest.py`
+fpl.duckdb
+raw/
+
+# Generated outputs
+best_team.html
+blended_weights.json
+feature_importance.csv
+weights.json
+_runtime_prefs.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

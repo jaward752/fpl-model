@@ -1,0 +1,181 @@
+{
+  "_README": [
+    "Your stated priorities, encoded. Edit any number here and re-run",
+    "apply_preferences.py -- nothing downstream is hardcoded.",
+    "",
+    "Weights are 0-10 RELATIVE IMPORTANCE within a position. They control how",
+    "much the model LEANS on each scoring route when projecting. They do NOT",
+    "change what a route is worth when it happens -- a goal is 6 pts for a FWD",
+    "and 4 for a MID because the rules say so, and no weight overrides that.",
+    "",
+    "alpha = how much your judgement counts vs the fitted 2025-26 data.",
+    "0 = ignore me entirely, 1 = ignore the data entirely."
+  ],
+  "alpha": 0.4,
+  "positions": {
+    "GKP": {
+      "_note": "Nailed 90 mins is a HARD FILTER, not a weight -- see hard_constraints.",
+      "clean_sheet": 10,
+      "saves": 6,
+      "bonus": 6,
+      "minutes_security": 10,
+      "penalty_saves": 0
+    },
+    "DEF": {
+      "_note": [
+        "Weights are CONDITIONAL on team strength -- this is a real model",
+        "change, not a single weight. See defender_team_split below."
+      ],
+      "clean_sheet": 9,
+      "defcon": 7,
+      "attacking_returns": 5,
+      "bonus": 6,
+      "minutes_security": 10,
+      "set_piece_threat": 3,
+      "_set_piece_note": "Lowered 7->3: only team-level set-play xG and aerial duels available as proxies. Heavy weight on a noisy input amplifies measurement error. Raise once player-level set-piece data exists."
+    },
+    "MID": {
+      "goals": 9,
+      "assists": 9,
+      "defcon": 5,
+      "bonus": 6,
+      "minutes_security": 7,
+      "clean_sheet": 2,
+      "consistency": 6,
+      "_consistency_note": "Redefined: was overlapping minutes_security (both mapped to start rate). Now measures RETURN FREQUENCY - share of matches with a goal or assist - not minutes. Weight 8->6 since minutes is counted separately."
+    },
+    "FWD": {
+      "goals": 10,
+      "assists": 8,
+      "bonus": 6,
+      "minutes_security": 7,
+      "defcon": 0
+    }
+  },
+  "defender_team_split": {
+    "_note": [
+      "Your point: for weak teams DefCon > clean sheets, because clean sheets",
+      "are unlikely. For strong teams DefCon and attacking returns rank about",
+      "equally, because when a good team wins comfortably the defender is less",
+      "likely to take bonus.",
+      "Split is on team Elo. 1800 is roughly the current league median."
+    ],
+    "elo_threshold": 1800,
+    "weak_team": {
+      "clean_sheet": 5,
+      "defcon": 9,
+      "attacking_returns": 4,
+      "bonus": 7
+    },
+    "strong_team": {
+      "clean_sheet": 10,
+      "defcon": 6,
+      "attacking_returns": 6,
+      "bonus": 5
+    }
+  },
+  "hard_constraints": {
+    "_note": "Filters, not weights. Applied before optimisation.",
+    "gk_min_start_probability": 0.9,
+    "gk_rationale": "You said GKs must be nailed 90 mins, no question."
+  },
+  "minutes_risk_tolerance": {
+    "_note": [
+      "You said you'd gamble on a MID or FWD with exceptional data but shaky",
+      "minutes -- never on a GK, and DEF needs guaranteed minutes.",
+      "Value is the minimum start probability before the player is excluded,",
+      "and the xP multiplier required to override it."
+    ],
+    "GKP": {
+      "min_p_start": 0.9,
+      "exceptional_override": false
+    },
+    "DEF": {
+      "min_p_start": 0.8,
+      "exceptional_override": false
+    },
+    "MID": {
+      "min_p_start": 0.5,
+      "exceptional_override": true,
+      "override_xp_multiple": 1.35
+    },
+    "FWD": {
+      "min_p_start": 0.55,
+      "exceptional_override": true,
+      "override_xp_multiple": 1.3
+    }
+  },
+  "set_pieces": {
+    "_note": [
+      "You flagged these as very important. Applied as an xP multiplier on the",
+      "relevant component, not as a flat bonus.",
+      "Penalties boost xG; corners and free kicks boost xA and set-piece xG."
+    ],
+    "penalty_taker_1st": 1.35,
+    "penalty_taker_2nd": 1.08,
+    "corner_taker_1st": 1.18,
+    "freekick_taker_1st": 1.12,
+    "team_setplay_xg_share_weight": 0.6
+  },
+  "midfielder_archetypes": {
+    "_note": [
+      "Your two profiles. Scored separately, then the model takes the higher --",
+      "a player only has to be good at ONE of these to be worth owning."
+    ],
+    "attacking_threat": {
+      "drivers": [
+        "xg90",
+        "xa90",
+        "shots",
+        "chances_created",
+        "touches_opposition_box"
+      ],
+      "weight": 1.0
+    },
+    "defensive_platform": {
+      "drivers": [
+        "defcon_hit_rate",
+        "team_clean_sheet_prob",
+        "xg90"
+      ],
+      "weight": 1.0
+    }
+  },
+  "forward_logic": {
+    "_note": [
+      "Premium forwards must justify price with frequent returns, not one big",
+      "haul. Cheap forwards are where differentials come from, so the model is",
+      "allowed to rate them highly on strong underlying data."
+    ],
+    "premium_price_threshold": 90,
+    "premium_requires_return_rate": 0.45,
+    "budget_price_threshold": 55,
+    "budget_upside_bonus": 1.15
+  },
+  "template_and_rank": {
+    "_note": [
+      "The big one. You are optimising RANK, not raw points. Being 'boring'",
+      "and close to template protects rank; differentials only pay when they",
+      "hit. This changes the OPTIMISER OBJECTIVE, not just weights.",
+      "",
+      "objective = E[points] - lambda * ownership_risk",
+      "",
+      "ownership_risk penalises NOT owning a highly-owned player far more than",
+      "it penalises owning an unowned one, because the downside is asymmetric.",
+      "",
+      "captain_template_bias near 1.0 means: only captain a differential when",
+      "its xP edge is large enough to justify the rank risk."
+    ],
+    "lambda_ownership_risk": 0.55,
+    "captain_template_bias": 0.85,
+    "captain_differential_xp_edge_required": 1.5,
+    "max_template_deviation_players": 4
+  },
+  "unknown_player_caution": {
+    "_note": [
+      "How hard to discount players the model has little data on. A tier-D player's xP is built from a positional average, not evidence, so it should not compete on equal terms with a proven starter. selection_score is multiplied by (floor + (1-floor) * confidence). floor=1.0 disables this; lower = more sceptical."
+    ],
+    "confidence_floor": 0.45,
+    "hard_min_confidence": 0.1
+  }
+}
